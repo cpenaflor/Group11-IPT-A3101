@@ -1,0 +1,11 @@
+# Security Secrets (CRITICAL)
+cert.key
+cert.crt
+cert.pem
+key.pem
+*.pem
+
+# Python environment
+venv/
+__pycache__/
+*.pyc
