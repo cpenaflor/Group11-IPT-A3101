@@ -17,8 +17,10 @@ Including another URLconf
 
 from django.contrib import admin
 from django.urls import path, include
+from posts.views import PostDetailView # Changed from connectly_project.posts.views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('posts/', include('posts.urls')),
+    path('posts/<int:pk>/', PostDetailView.as_view(), name='post-detail'),
 ]

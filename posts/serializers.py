@@ -1,10 +1,12 @@
 from rest_framework import serializers
 from .models import User, Post, Comment
+from django.contrib.auth.models import User
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'created_at']
+        # Only include safe fields; DO NOT include 'password'
+        fields = ['username', 'email']
 
 class PostSerializer(serializers.ModelSerializer):
     # This allows us to see the text of related comments when viewing a post
@@ -29,3 +31,9 @@ class CommentSerializer(serializers.ModelSerializer):
         if not User.objects.filter(id=value.id).exists():
             raise serializers.ValidationError("Author not found.")
         return value
+    
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        # Only list fields that are safe to show the public
+        fields = ['username', 'email']  # Exclude 'password' here
