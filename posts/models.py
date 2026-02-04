@@ -1,20 +1,25 @@
 from django.db import models
-
-class User(models.Model):
-    username = models.CharField(max_length=100, unique=True)
-    email = models.EmailField(unique=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return self.username
+from django.contrib.auth.models import User # Use built-in User for security features
 
 class Post(models.Model):
-    content = models.TextField()
+    # --- FACTORY PATTERN CONFIGURATION ---
+    POST_TYPES = [
+        ('text', 'Text'),
+        ('image', 'Image'),
+        ('video', 'Video'),
+    ]
+
+    post_type = models.CharField(max_length=10, choices=POST_TYPES, default='text')
+    title = models.CharField(max_length=255)
+    content = models.TextField(blank=True)
+    metadata = models.JSONField(default=dict, blank=True) # Stores factory-validated data
+    # -------------------------------------
+
     author = models.ForeignKey(User, related_name='posts', on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Post by {self.author.username} at {self.created_at}"
+        return f"{self.title} ({self.post_type}) by {self.author.username}"
 
 class Comment(models.Model):
     text = models.TextField()
