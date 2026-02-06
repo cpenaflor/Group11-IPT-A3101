@@ -10,6 +10,20 @@ from rest_framework.permissions import IsAuthenticated
 from .permissions import IsPostAuthor
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
+from singletons.logger_singleton import LoggerSingleton
+from factories.task_factory import TaskFactory
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+
+
+
+logger = LoggerSingleton().get_logger()
+
+
+def some_view(request):
+    logger.info("Processing request...")
+    return Response({"message": "Request processed"})
 
 # --- Corrected Password Hashing Logic ---
 # This ensures it only runs if the user doesn't exist yet
@@ -93,3 +107,18 @@ class ProtectedView(APIView):
 
     def get(self, request):
         return Response({"message": "Authenticated!"})
+
+class CreateTaskView(APIView):
+    def post(self, request):
+        data = request.data
+        try:
+            task = TaskFactory.create_task(
+                task_type=data['task_type'],
+                title=data['title'],
+                description=data.get('description', ''),
+                assigned_to=data['assigned_to'],
+                metadata=data.get('metadata', {})
+            )
+            return Response({'message': 'Task created successfully!', 'task_id': task.id}, status=status.HTTP_201_CREATED)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
