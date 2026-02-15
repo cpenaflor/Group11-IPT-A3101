@@ -18,17 +18,12 @@ from django.contrib import admin
 from django.urls import path, include
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('api-auth/', include('rest_framework.urls')),
+    path("admin/", admin.site.urls),
 
-    
-]
+    # Optional: DRF browsable API login/logout
+    path("api-auth/", include("rest_framework.urls")),
 
-from django.urls import path, include
-
-
-urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('posts/', include('posts.urls')),
+    # Your app API routes
+    path("api/", include("posts.urls")),
 ]
 
