@@ -16,6 +16,9 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.urls import path
+from authentication.views import GoogleLoginView
+from rest_framework_simplejwt.views import TokenRefreshView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -25,5 +28,8 @@ urlpatterns = [
 
     # Your app API routes
     path("api/", include("posts.urls")),
+
+    path('api/auth/google/login/', GoogleLoginView.as_view(), name='google-login'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 ]
 

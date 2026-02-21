@@ -48,8 +48,14 @@ class UserListCreate(APIView):
 # POSTS
 
 
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework_simplejwt.authentication import JWTAuthentication
+
 class PostListCreate(APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -66,11 +72,13 @@ class PostListCreate(APIView):
             # author set server-side
             post = serializer.save(author=request.user)
             logger.info(
-                f"Post created: post_id={post.id}, author={request.user.username}")
+                f"Post created: post_id={post.id}, author={request.user.username}"
+            )
             return Response(PostSerializer(post).data, status=status.HTTP_201_CREATED)
 
         logger.warning(
-            f"Post create failed: user={request.user.username}, errors={serializer.errors}")
+            f"Post create failed: user={request.user.username}, errors={serializer.errors}"
+        )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 

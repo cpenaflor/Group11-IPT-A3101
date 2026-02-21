@@ -1,5 +1,7 @@
 from django.urls import path
 from rest_framework.authtoken.views import obtain_auth_token
+from authentication.views import GoogleLoginView
+
 from .views import (
     UserListCreate,
     PostListCreate, PostDetail,
@@ -21,4 +23,8 @@ urlpatterns = [
     path("posts/<int:pk>/like/", PostLike.as_view(), name="post-like"),
     path("posts/<int:pk>/comment/", PostComment.as_view(), name="post-comment"),
     path("posts/<int:pk>/comments/", PostComments.as_view(), name="post-comments"),
+
+    # HOmework 6
+    path('api/auth/google/login/', GoogleLoginView.as_view(), name='google-login'),
+    path('auth/google/login/', GoogleLoginView.as_view(), name='google-login'),
 ]
