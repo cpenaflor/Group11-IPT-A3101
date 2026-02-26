@@ -1,0 +1,22 @@
+# Database
+db.sqlite3
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Virtual Environment
+env/
+venv/
+
+# Security Certificates (Napaka-importante!)
+*.crt
+*.key
+*.pem
+cert.crt
+cert.key
+cert.pem
+key.pem
+
+# OS generated files
+.DS_Store
