@@ -2,7 +2,7 @@ from django.urls import path
 from .views import (
     UserListCreate, PostListCreate, CommentListCreate, 
     UserLogin, PostDetailView, CreatePostView,
-    CommentCreateView, LikeToggleView
+    CommentCreateView, LikeToggleView, NewsFeedView
 )
 
 urlpatterns = [
@@ -14,4 +14,5 @@ urlpatterns = [
     path('create/', CreatePostView.as_view(), name='create-post'),
     path('<int:post_id>/comments/', CommentCreateView.as_view(), name='post-comments'),
     path('<int:post_id>/like/', LikeToggleView.as_view(), name='like-post'),
+    path('feed/', NewsFeedView.as_view(), name='news-feed'),
 ]

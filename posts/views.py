@@ -5,11 +5,13 @@ from django.contrib.auth.models import User as AuthUser, Group
 from django.contrib.auth import authenticate, login
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import TokenAuthentication
+from rest_framework.exceptions import NotFound
 from .models import Post, Comment, Like
 from .serializers import UserSerializer, PostSerializer, CommentSerializer
 from .permissions import IsPostAuthor
 from singletons.logger_singleton import LoggerSingleton
 from factories.post_factory import PostFactory
+from rest_framework.pagination import PageNumberPagination
 
 logger = LoggerSingleton().get_logger()
 
@@ -134,3 +136,32 @@ class CommentListCreate(APIView):
         comments = Comment.objects.all()
         serializer = CommentSerializer(comments, many=True)
         return Response(serializer.data)
+
+class NewsFeedPagination(PageNumberPagination):
+    page_size = 5
+    page_size_query_param = 'page_size'
+    max_page_size = 50
+
+class NewsFeedView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        posts = Post.objects.all().order_by('-created_at')
+        
+        post_type = request.query_params.get('post_type')
+        if post_type:
+            posts = posts.filter(post_type=post_type)
+        
+        paginator = NewsFeedPagination()
+        try:
+            paginated_posts = paginator.paginate_queryset(posts, request)
+        except NotFound:
+            return Response({
+                "error": "Invalid page",
+                "message": "The requested page does not exist."
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = PostSerializer(paginated_posts, many=True)
+        logger.info(f"User {request.user.username} accessed the news feed.")
+        return paginator.get_paginated_response(serializer.data)
