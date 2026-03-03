@@ -16,19 +16,19 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.urls import path
+from authentication.views import GoogleLoginView
+from rest_framework_simplejwt.views import TokenRefreshView
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('api-auth/', include('rest_framework.urls')),
+    path("admin/", admin.site.urls),
 
-    
+    # Optional: DRF browsable API login/logout
+    path("api-auth/", include("rest_framework.urls")),
+
+    # Your app API routes
+    path("api/", include("posts.urls")),
+
+    path('api/auth/google/login/', GoogleLoginView.as_view(), name='google-login'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 ]
-
-from django.urls import path, include
-
-
-urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('posts/', include('posts.urls')),
-]
-
