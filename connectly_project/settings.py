@@ -46,11 +46,11 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
-    'posts',
+    'connectly_project.posts',
     'django_extensions',
     'rest_framework.authtoken',
     'rest_framework_simplejwt',
-    'authentication',
+    'connectly_project.authentication',
 ]
 
 MIDDLEWARE = [
