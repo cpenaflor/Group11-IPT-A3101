@@ -1,6 +1,6 @@
 from django.urls import path
 from rest_framework.authtoken.views import obtain_auth_token
-from authentication.views import GoogleLoginView
+from connectly_project.authentication.views import GoogleLoginView
 
 from .views import (
     UserListCreate,
