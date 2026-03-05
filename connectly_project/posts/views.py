@@ -78,7 +78,7 @@ class PostListCreate(APIView):
 
 
 class PostDetail(APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated, IsPostAuthor]
 
     def get(self, request, pk):
@@ -118,7 +118,7 @@ class PostDetail(APIView):
 
 
 class PostLike(APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
@@ -142,7 +142,7 @@ class PostLike(APIView):
 
 
 class PostComment(APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
@@ -171,7 +171,7 @@ class PostComment(APIView):
 
 
 class PostComments(APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request, pk):
@@ -187,7 +187,7 @@ class PostComments(APIView):
 
 
 class CommentListCreate(APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -225,7 +225,7 @@ class CommentListCreate(APIView):
 
 
 class CommentDetail(APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated, IsCommentAuthor]
 
     def delete(self, request, pk):
