@@ -72,6 +72,7 @@ connectly_project/
 │   └── post_factory.py # Factory Pattern for Post creation
 ├── settings.py # Project configuration and DRF settings
 └── urls.py     # Root URL configuration
+```
 
 **API Endpoints**
 1. Users
