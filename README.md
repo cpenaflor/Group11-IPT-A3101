@@ -2,9 +2,13 @@
 **Group 11 - Connectly API (+ Likes/Comments + Newsfeed + Google Oauth Login)**
 
 **Members**
+
 Charmaine Nabor
+
 Emmar Alvarez
+
 Christian Paul Penaflor
+
 Kenneth Ian Lu
 
 **Project Overview**
