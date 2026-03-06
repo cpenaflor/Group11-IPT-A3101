@@ -12,3 +12,5 @@ __pycache__/
 
 connectly_project/.env
 db.sqlite3
+
+.env
