@@ -107,6 +107,8 @@ connectly_project/
 5. Token & Social Authentication: Secures API access.
 6. Pagination & Filtering: Improves scalability and user experience.
 
+**Google OAuth2 Setup Guide:** https://docs.google.com/document/d/1GGz73yMD7y4MrriUWU8q6obsma4GwURb3wOGIB7zZ_8/edit?usp=sharing
+
 **AI Assistance Disclosure**
 
 AI tools (ChatGPT, Gemini) were used as a supportive resource throughout the development of this project. This included:
@@ -115,4 +117,4 @@ AI tools (ChatGPT, Gemini) were used as a supportive resource throughout the dev
    - Suggesting structural improvements and alternative implementations.
    - Providing example patterns, debugging guidance, and explanations of technical concepts.
 
-The project team reviewed, modified, and integrated all AI-assisted code to ensure correctness, security, and alignment with project requirements. All final design and implementation decisions were made by the team.
+The project team reviewed, modified, and integrated all AI-assisted code to ensure correctness and alignment with project requirements. All final design and implementation decisions were made by the team.
