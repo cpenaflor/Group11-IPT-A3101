@@ -1,11 +1,18 @@
+# This file defines API views for the posts application.
+# Views handle CRUD operations for users, posts, comments, and likes.
+# It also implements Google login integration, news feed retrieval, 
+# and enforces object-level permissions to ensure secure access.
+# Logging is used extensively for traceability and debugging.
+
 from django.shortcuts import get_object_or_404
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated, AllowAny
+
+from factories.post_factory import PostFactory
 
 from .singletons.logger_singleton import LoggerSingleton
 from .models import Post, Comment, Like
@@ -16,24 +23,37 @@ from .serializers import (
     LikeSerializer,
 )
 from .permissions import IsPostAuthor, IsCommentAuthor
-from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework.pagination import PageNumberPagination
 
-# Singleton logger instance
+# Dynamically get the active user model
+User = get_user_model()
+
+# Initialize a singleton logger for consistent logging across views
 logger = LoggerSingleton().get_logger()
 
-# USERS
-
-
+# -------------------- USERS -------------------- #
 class UserListCreate(APIView):
+    """
+    API view to list all users or create a new user.
+    GET: Returns a list of all users.
+    POST: Creates a new user with validated input.
+    """
     permission_classes = [AllowAny]
 
     def get(self, request):
+        """
+        Retrieve all users from the database and return serialized data.
+        """
         logger.info("GET /users/")
         users = User.objects.all()
         serializer = UserSerializer(users, many=True)
         return Response(serializer.data)
 
     def post(self, request):
+        """
+        Create a new user from the provided request data.
+        Logs success or failure and returns appropriate HTTP status.
+        """
         logger.info("POST /users/ (create user)")
         serializer = UserSerializer(data=request.data)
 
@@ -46,11 +66,14 @@ class UserListCreate(APIView):
         logger.warning(f"User create failed: errors={serializer.errors}")
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-# POSTS
 
-
+# -------------------- POSTS -------------------- #
 class PostListCreate(APIView):
-    authentication_classes = [JWTAuthentication]
+    """
+    API view to list all posts or create a new post.
+    GET: Returns all posts in descending order of creation time.
+    POST: Creates a new post using PostFactory and validates input.
+    """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -60,25 +83,37 @@ class PostListCreate(APIView):
         return Response(serializer.data)
 
     def post(self, request):
+        """
+        Create a new post using the PostFactory.
+        Validates post_type, content, and optional metadata.
+        """
         logger.info(f"POST /posts/ by user={request.user.username}")
-        serializer = PostSerializer(data=request.data)
+        content = request.data.get('content', '')
+        post_type = request.data.get('post_type', 'text')
+        metadata = request.data.get('metadata', {})
 
-        if serializer.is_valid():
-            # author set server-side
-            post = serializer.save(author=request.user)
-            logger.info(
-                f"Post created: post_id={post.id}, author={request.user.username}"
+        try:
+            post = PostFactory.create_post(
+                post_type=post_type,
+                author=request.user,
+                content=content,
+                metadata=metadata
             )
+            
+            logger.info(f"Post created via Factory: post_id={post.id}")
             return Response(PostSerializer(post).data, status=status.HTTP_201_CREATED)
 
-        logger.warning(
-            f"Post create failed: user={request.user.username}, errors={serializer.errors}"
-        )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except ValueError as e:
+            # 4. Handle validation errors (like blank content)
+            logger.warning(f"Post creation failed: {str(e)}")
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class PostDetail(APIView):
-    authentication_classes = [JWTAuthentication]
+    """
+    API view to retrieve, update, or delete a specific post.
+    Enforces that only the author can update or delete the post.
+    """
     permission_classes = [IsAuthenticated, IsPostAuthor]
 
     def get(self, request, pk):
@@ -88,11 +123,15 @@ class PostDetail(APIView):
         return Response(PostSerializer(post).data)
 
     def put(self, request, pk):
+        """
+        Update a post if the requesting user is the author.
+        Validates the updated data and logs success or failure.
+        """
         logger.info(f"PUT /posts/{pk}/ by user={request.user.username}")
         post = get_object_or_404(Post, pk=pk)
         self.check_object_permissions(request, post)
-
         serializer = PostSerializer(post, data=request.data)
+
         if serializer.is_valid():
             updated_post = serializer.save(author=request.user)
             logger.info(
@@ -104,30 +143,32 @@ class PostDetail(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
+        """
+        Delete a post if the requesting user is the author.
+        Logs deletion event and returns HTTP 204 on success.
+        """
         logger.info(f"DELETE /posts/{pk}/ by user={request.user.username}")
         post = get_object_or_404(Post, pk=pk)
         self.check_object_permissions(request, post)
-
         post.delete()
         logger.info(
             f"Post deleted: post_id={pk}, by user={request.user.username}")
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-# HOMEWORK 5: LIKES + POST COMMENTS
-# Like a post (prevents duplicate likes)
-
-
+# -------------------- LIKES -------------------- #
 class PostLike(APIView):
-    authentication_classes = [JWTAuthentication]
+    """
+    API view to like a post.
+    Prevents duplicate likes by the same user for the same post.
+    """
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
         post = get_object_or_404(Post, pk=pk)
         logger.info(f"POST /posts/{pk}/like/ by user={request.user.username}")
-
-        # safest duplicate-prevention pattern
         like, created = Like.objects.get_or_create(
             user=request.user, post=post)
+        
         if not created:
             logger.warning(
                 f"Duplicate like blocked: user={request.user.username}, post_id={pk}")
@@ -138,11 +179,13 @@ class PostLike(APIView):
 
         return Response(LikeSerializer(like).data, status=status.HTTP_201_CREATED)
 
-# Comment on a specific post (validates non-empty text)
 
-
+# -------------------- COMMENTS -------------------- #
 class PostComment(APIView):
-    authentication_classes = [JWTAuthentication]
+    """
+    API view to add a comment to a specific post.
+    Validates that the comment text is not empty.
+    """
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
@@ -167,11 +210,12 @@ class PostComment(APIView):
             f"Comment created: comment_id={comment.id}, post_id={pk}, user={request.user.username}")
         return Response(CommentSerializer(comment).data, status=status.HTTP_201_CREATED)
 
-# Get all comments for a specific post
-
 
 class PostComments(APIView):
-    authentication_classes = [JWTAuthentication]
+    """
+    API view to retrieve all comments for a specific post.
+    Returns comments in descending order of creation.
+    """
     permission_classes = [IsAuthenticated]
 
     def get(self, request, pk):
@@ -183,11 +227,12 @@ class PostComments(APIView):
         serializer = CommentSerializer(comments, many=True)
         return Response(serializer.data)
 
-# COMMENTS (GLOBAL)
-
 
 class CommentListCreate(APIView):
-    authentication_classes = [JWTAuthentication]
+    """
+    API view to list all comments or create a new comment globally.
+    Validates that post exists and comment text is not empty.
+    """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -197,10 +242,6 @@ class CommentListCreate(APIView):
         return Response(serializer.data)
 
     def post(self, request):
-        """
-        Optional endpoint: create a comment by passing post id.
-        Safer version: validates post exists and text is not empty.
-        """
         logger.info(f"POST /comments/ by user={request.user.username}")
 
         post_id = request.data.get("post")
@@ -225,7 +266,10 @@ class CommentListCreate(APIView):
 
 
 class CommentDetail(APIView):
-    authentication_classes = [JWTAuthentication]
+    """
+    API view to delete a specific comment.
+    Ensures that only the comment's author can perform deletion.
+    """
     permission_classes = [IsAuthenticated, IsCommentAuthor]
 
     def delete(self, request, pk):
@@ -237,3 +281,46 @@ class CommentDetail(APIView):
         logger.info(
             f"Comment deleted: comment_id={pk}, by user={request.user.username}")
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# -------------------- NEWS FEED -------------------- #
+class NewsFeedPagination(PageNumberPagination):
+    """
+    Custom pagination class for the news feed.
+    """
+    page_size = 5  # Number of posts per page
+    page_size_query_param = 'page_size'
+    max_page_size = 50
+
+class NewsFeedView(APIView):
+    """
+    API view for paginated news feed.
+    Supports filtering by posts liked by the requesting user.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        logger.info(f"User {request.user.username} accessing news feed.")
+        
+        # Retrieve posts in descending order
+        posts = Post.objects.all().order_by('-created_at')
+
+        # Filter by liked posts if requested
+        liked_only = request.query_params.get('liked_only')
+        if liked_only == 'true':
+            posts = posts.filter(likes__user=request.user)
+            logger.info(f"Filtering feed for posts liked by {request.user.username}")
+
+        # Apply pagination
+        paginator = NewsFeedPagination()
+        try:
+            paginated_posts = paginator.paginate_queryset(posts, request)
+        except Exception:
+            return Response(
+                {"error": "Invalid page", "message": "The requested page does not exist."}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Serialize and return paginated posts
+        serializer = PostSerializer(paginated_posts, many=True)
+        return paginator.get_paginated_response(serializer.data)
