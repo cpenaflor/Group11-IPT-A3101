@@ -2,13 +2,14 @@
 
 **Group 11 - Connectly API (+ Likes/Comments + Newsfeed + Google Oauth Login)**
 
-**Members**
+**Members:**
 - Charmaine Nabor
 - Emmar Alvarez
 - Christian Paul Penaflor
 - Kenneth Ian Lu
 
 **Project Overview**
+
 Connectly is a Django REST Framework (DRF) API designed to provide a secure and extensible backend for social interaction applications. It integrates advanced security measures, ownership-based access control, social login, and modern design patterns to maintain code quality and reusability.
 
 The API supports:
