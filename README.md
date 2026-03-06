@@ -104,9 +104,11 @@ Newsfeed
 6. Pagination & Filtering: Improves scalability and user experience.
 
 **AI Assistance Disclosure**
+
 AI tools (ChatGPT, Gemini) were used as a supportive resource throughout the development of this project. This included:
    - Generating and refining portions of the codebase.
    - Improving readability through clearer comments, docstrings, and documentation.
    - Suggesting structural improvements and alternative implementations.
    - Providing example patterns, debugging guidance, and explanations of technical concepts.
+
 The project team reviewed, modified, and integrated all AI-assisted code to ensure correctness, security, and alignment with project requirements. All final design and implementation decisions were made by the team.
