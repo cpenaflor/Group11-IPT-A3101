@@ -71,14 +71,14 @@ connectly_project/
 ├─ urls.py # Root URL configuration
 
 **API Endpoints**
-Users
+1. Users
    - GET /api/users/ - List all users
    - POST /api/users/ - Create a new user
-Authentication
+2. Authentication
    - POST /api/token/ - Obtain auth token
    - POST /api/token/refresh/ - Refresh JWT token
    - POST /api/auth/google/login/ - Google OAuth login
-Posts
+3. Posts
    - GET /api/posts/ - List all posts
    - POST /api/posts/ - Create a new post
    - GET /api/posts/<id>/ - Retrieve a single post
@@ -87,11 +87,11 @@ Posts
    - POST /api/posts/<id>/like/ - Like a post
    - POST /api/posts/<id>/comment/ - Comment on a post
    - GET /api/posts/<id>/comments/ - List comments for a post
-Comments
+4. Comments
    - GET /api/comments/ - List all comments
    - POST /api/comments/ - Create a comment (with post ID)
    - DELETE /api/comments/<id>/ - Delete a comment (author only)
-Newsfeed
+5. Newsfeed
    - GET /api/feed/ - Retrieve paginated posts feed
    - Query param liked_only=true - Filter feed to posts liked by the user
 
