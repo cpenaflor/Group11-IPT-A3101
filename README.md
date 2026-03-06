@@ -53,24 +53,25 @@ The API supports:
    - Factory Pattern: Post creation logic centralized for validation and extensibility
 
 **Project Structure**
+```text
 connectly_project/
-├─ authentication/
-│ ├─ models.py # CustomUser model
-│ ├─ views.py # Google OAuth login
-│ ├─ urls.py # Authentication endpoints
-├─ posts/
-│ ├─ models.py # Post, Comment, Like
-│ ├─ views.py # CRUD operations, likes, comments, newsfeed
-│ ├─ serializers.py # DRF serializers for Post, Comment, Like
-│ ├─ permissions.py # Ownership-based permissions
-│ ├─ urls.py # Post and comment endpoints
-│ ├─ singletons/
-│ │ ├─ logger_singleton.py # Singleton Logger
-│ │ ├─ config_singleton.py # Optional Config Manager
-│ ├─ factories/
-│ │ ├─ post_factory.py # Factory Pattern for Post creation
-├─ settings.py # Project configuration and DRF settings
-├─ urls.py # Root URL configuration
+├── authentication/
+│   ├── models.py # CustomUser model
+│   ├── views.py  # Google OAuth login
+│   └── urls.py   # Authentication endpoints
+├── posts/
+│   ├── models.py      # Post, Comment, Like
+│   ├── views.py       # CRUD operations, likes, comments, newsfeed
+│   ├── serializers.py # DRF serializers for Post, Comment, Like
+│   ├── permissions.py # Ownership-based permissions
+│   └── urls.py        # Post and comment endpoints
+├── singletons/
+│   ├── logger_singleton.py # Singleton Logger
+│   └── config_singleton.py # Optional Config Manager
+├── factories/
+│   └── post_factory.py # Factory Pattern for Post creation
+├── settings.py # Project configuration and DRF settings
+└── urls.py     # Root URL configuration
 
 **API Endpoints**
 1. Users
