@@ -34,8 +34,8 @@ urlpatterns = [
     path("posts/<int:pk>/comments/", PostComments.as_view(), name="post-comments"), # List all comments for a specific post
 
     # Homework 6: Google OAuth login endpoints
-    path('api/auth/google/login/', GoogleLoginView.as_view(), name='google-login'),  # Login via Google OAuth
-    path('auth/google/login/', GoogleLoginView.as_view(), name='google-login'),  # Alternative path for Google OAuth login
+    path('api/auth/google/login/', GoogleLoginView.as_view(), name='google-login'),  # REST API endpoint for exchanging a Google OAuth token for a JWT/session token
+    path('accounts/google/login/', GoogleLoginView.as_view(), name='google-login'),  # Social login landing page for browser-based authentication and user redirection.
 
     # Homework 7: News feed endpoint
     path('feed/', NewsFeedView.as_view(), name='news-feed'), # Retrieve paginated news feed with sorting and filtering

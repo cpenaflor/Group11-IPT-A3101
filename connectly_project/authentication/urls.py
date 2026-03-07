@@ -9,7 +9,7 @@ from django.urls import path
 urlpatterns = [
     # Endpoint for Google OAuth login
     # Maps POST requests to the GoogleLoginView class
-    path('auth/google/login/', GoogleLoginView.as_view(), name='google-login'),
+    path('api/auth/google/login/', GoogleLoginView.as_view(), name='google-login'),
 ]
 
 

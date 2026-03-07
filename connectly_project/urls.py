@@ -24,7 +24,7 @@ urlpatterns = [
 
     # -------------------- REST FRAMEWORK AUTH -------------------- #
     # Provides browsable API login/logout buttons
-    path("api-auth/", include("rest_framework.urls")), 
+    path("api-auth/login/", include("rest_framework.urls")), 
     
     # -------------------- SOCIAL AUTH -------------------- #
     # Handles Google OAuth redirects and login flow via allauth
