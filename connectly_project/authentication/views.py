@@ -16,11 +16,9 @@ from decouple import config
 User = get_user_model()
 
 class GoogleLoginView(APIView):
-    """
-    View class to handle Google OAuth login.
-    Accepts a POST request with an 'id_token' from Google,
-    verifies it, and returns JWT access and refresh tokens for the user.
-    """
+    # View class to handle Google OAuth login.
+    # Accepts a POST request with an 'id_token' from Google,
+    # verifies it, and returns JWT access and refresh tokens for the user.
     # Allow any user (authenticated or not) to access this endpoint
     permission_classes = [AllowAny]
 
