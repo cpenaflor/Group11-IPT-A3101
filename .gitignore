@@ -9,3 +9,8 @@ key.pem
 venv/
 __pycache__/
 *.pyc
+
+connectly_project/.env
+db.sqlite3
+
+.env
