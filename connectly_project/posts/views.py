@@ -6,6 +6,7 @@
 
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
+from django.db.models import Q
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -24,6 +25,7 @@ from .serializers import (
 )
 from .permissions import IsPostAuthor, IsCommentAuthor
 from rest_framework.pagination import PageNumberPagination
+
 
 # Dynamically get the active user model
 User = get_user_model()
@@ -92,12 +94,24 @@ class PostListCreate(APIView):
         post_type = request.data.get('post_type', 'text')
         metadata = request.data.get('metadata', {})
 
+        # --- Strict Privacy Validation ---
+        privacy_level = request.data.get('privacy_level')
+
+        if privacy_level is None:
+            logger.warning(f"Post creation failed: Missing privacy_level")
+            return Response(
+                {"error": "privacy_level is required. Use 1 for Private, 2 for Public."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         try:
+            # Pass the privacy_level into your Factory
             post = PostFactory.create_post(
                 post_type=post_type,
                 author=request.user,
                 content=content,
-                metadata=metadata
+                metadata=metadata,
+                privacy_level=privacy_level 
             )
             
             logger.info(f"Post created via Factory: post_id={post.id}")
@@ -303,7 +317,10 @@ class NewsFeedView(APIView):
         logger.info(f"User {request.user.username} accessing news feed.")
         
         # Retrieve posts in descending order
-        posts = Post.objects.all().order_by('-created_at')
+        # Only show Public posts OR the user's own Private posts
+        posts = Post.objects.filter(
+            Q(privacy_level=2) | Q(author=request.user)
+        ).order_by('-created_at')
 
         # Filter by liked posts if requested
         liked_only = request.query_params.get('liked_only')

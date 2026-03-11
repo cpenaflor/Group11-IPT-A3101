@@ -21,7 +21,17 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id", "username", "email", "password"]
+        fields = ["id", "username", "email", "password", "role"]
+
+    def validate_role(self, value):
+        """
+        Ensure the role is one of the allowed integers (1, 2, 3)
+        """
+        if value not in [1, 2, 3]:
+            raise serializers.ValidationError(
+                "Invalid role. Use 1=Admin, 2=User."
+            )
+        return value
 
     def create(self, validated_data):
         """
@@ -32,7 +42,9 @@ class UserSerializer(serializers.ModelSerializer):
             username=validated_data["username"],
             email=validated_data.get("email", ""),
             password=validated_data["password"],
+            role=validated_data.get("role", User.Roles.USER)
         )
+
 
 class CommentSerializer(serializers.ModelSerializer):
     """
@@ -50,6 +62,9 @@ class PostSerializer(serializers.ModelSerializer):
     Serializer for the Post model.
     Includes counts of likes and comments, as well as nested comment data.
     """
+    # Explicitly include the privacy_level field for validation and serialization
+    privacy_level = serializers.IntegerField()
+    
     # Include the author's username as a read-only field
     author = serializers.ReadOnlyField(source="author.username")
 
@@ -64,7 +79,18 @@ class PostSerializer(serializers.ModelSerializer):
         model = Post
         # Fields included in API responses
         fields = ["id", "content", "author", "created_at", 
-                  "like_count", "comment_count", "comments"]
+                  "like_count", "comment_count", "comments", "privacy_level"]
+
+    def validate_privacy_level(self, value):
+        """
+        Ensure the privacy level is either 1 (Private) or 2 (Public).
+        """
+        if value not in [1, 2]:
+            raise serializers.ValidationError(
+                "Invalid privacy level. Use 1=Private, 2=Public."
+            )
+        return value
+
 
     def get_like_count(self, obj):
         """
