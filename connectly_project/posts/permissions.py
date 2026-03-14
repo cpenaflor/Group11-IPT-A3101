@@ -10,11 +10,9 @@ class IsPostAuthor(BasePermission):
     Custom permission that allows only the author of a post to perform
     actions that require object-level permissions (e.g., update or delete).
     """
+
     def has_object_permission(self, request, view, obj):
-        """
-        Return True if the requesting user is the author of the post.
-        """
-        return obj.author == request.user
+        return obj.author == request.user or getattr(request.user, "role", None) == 1
 
 
 class IsCommentAuthor(BasePermission):
@@ -22,8 +20,6 @@ class IsCommentAuthor(BasePermission):
     Custom permission that allows only the author of a comment to perform
     actions that require object-level permissions (e.g., delete).
     """
+
     def has_object_permission(self, request, view, obj):
-        """
-        Return True if the requesting user is the author of the comment.
-        """
-        return obj.author == request.user
+        return obj.author == request.user or getattr(request.user, "role", None) == 1
