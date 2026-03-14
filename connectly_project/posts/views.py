@@ -1,16 +1,15 @@
-# This file defines API views for the posts application.
-# Views handle CRUD operations for users, posts, comments, and likes.
-# It also implements Google login integration, news feed retrieval, 
-# and enforces object-level permissions to ensure secure access.
-# Logging is used extensively for traceability and debugging.
+# This file contains all API views for users, posts, comments, likes, and news feed.
+# It also implements role-based access control and privacy-level rules.
 
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
+from django.db.models import Q
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.pagination import PageNumberPagination
 
 from factories.post_factory import PostFactory
 
@@ -22,38 +21,73 @@ from .serializers import (
     CommentSerializer,
     LikeSerializer,
 )
-from .permissions import IsPostAuthor, IsCommentAuthor
-from rest_framework.pagination import PageNumberPagination
 
-# Dynamically get the active user model
+# Get the active custom user model
 User = get_user_model()
 
-# Initialize a singleton logger for consistent logging across views
+# Shared logger instance
 logger = LoggerSingleton().get_logger()
 
-# -------------------- USERS -------------------- #
+
+#  Helper functions
+
+def is_admin(user):
+    # Returns True if the authenticated user has admin role
+    return user.is_authenticated and getattr(user, "role", None) == 1
+
+
+def is_public(post):
+    # Returns True if the post is public
+    return getattr(post, "privacy_level", None) == 2
+
+
+def can_view_post(user, post):
+    # Access rules for viewing a post:
+    # - admin can view any post
+    # - owner can view own post
+    # - anyone authenticated can view public post
+    if not user.is_authenticated:
+        return False
+    if is_admin(user):
+        return True
+    if post.author == user:
+        return True
+    if is_public(post):
+        return True
+    return False
+
+
+def can_interact_with_post(user, post):
+    # Access rules for liking/commenting:
+    # - admin can interact with any post
+    # - owner can interact with own post
+    # - anyone authenticated can interact with public post
+    if not user.is_authenticated:
+        return False
+    if is_admin(user):
+        return True
+    if post.author == user:
+        return True
+    if is_public(post):
+        return True
+    return False
+
+
+#  User views
+
 class UserListCreate(APIView):
-    """
-    API view to list all users or create a new user.
-    GET: Returns a list of all users.
-    POST: Creates a new user with validated input.
-    """
+    # Allow anyone to create a user or list users
     permission_classes = [AllowAny]
 
     def get(self, request):
-        """
-        Retrieve all users from the database and return serialized data.
-        """
+        # Return all users
         logger.info("GET /users/")
         users = User.objects.all()
         serializer = UserSerializer(users, many=True)
         return Response(serializer.data)
 
     def post(self, request):
-        """
-        Create a new user from the provided request data.
-        Logs success or failure and returns appropriate HTTP status.
-        """
+        # Create a new user
         logger.info("POST /users/ (create user)")
         serializer = UserSerializer(data=request.data)
 
@@ -67,161 +101,221 @@ class UserListCreate(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-# -------------------- POSTS -------------------- #
+#  Post views
+
 class PostListCreate(APIView):
-    """
-    API view to list all posts or create a new post.
-    GET: Returns all posts in descending order of creation time.
-    POST: Creates a new post using PostFactory and validates input.
-    """
+    # Only authenticated users can list/create posts
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        logger.info(f"GET /posts/ by user={request.user.username}")
-        posts = Post.objects.all().order_by("-created_at")
+        # Return posts based on user role:
+        # - admin sees all posts
+        # - normal user sees public posts + own posts
+        logger.info(
+            f"GET /posts/ by user={request.user.username}, role={getattr(request.user, 'role', None)}"
+        )
+
+        if is_admin(request.user):
+            posts = Post.objects.all().order_by("-created_at")
+        else:
+            posts = Post.objects.filter(
+                Q(privacy_level=2) | Q(author=request.user)
+            ).order_by("-created_at")
+
         serializer = PostSerializer(posts, many=True)
         return Response(serializer.data)
 
     def post(self, request):
-        """
-        Create a new post using the PostFactory.
-        Validates post_type, content, and optional metadata.
-        """
+        # Create a new post using the factory
         logger.info(f"POST /posts/ by user={request.user.username}")
-        content = request.data.get('content', '')
-        post_type = request.data.get('post_type', 'text')
-        metadata = request.data.get('metadata', {})
+
+        content = request.data.get("content", "")
+        post_type = request.data.get("post_type", "text")
+        metadata = request.data.get("metadata", {})
+        privacy_level = request.data.get("privacy_level")
+
+        # Require privacy_level in request body
+        if privacy_level is None:
+            logger.warning("Post creation failed: Missing privacy_level")
+            return Response(
+                {"error": "privacy_level is required. Use 1 for Private, 2 for Public."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Make sure privacy_level is integer
+        try:
+            privacy_level = int(privacy_level)
+        except (TypeError, ValueError):
+            return Response(
+                {"error": "privacy_level must be an integer. Use 1 for Private, 2 for Public."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         try:
             post = PostFactory.create_post(
                 post_type=post_type,
                 author=request.user,
                 content=content,
-                metadata=metadata
+                metadata=metadata,
+                privacy_level=privacy_level,
             )
-            
             logger.info(f"Post created via Factory: post_id={post.id}")
             return Response(PostSerializer(post).data, status=status.HTTP_201_CREATED)
 
         except ValueError as e:
-            # 4. Handle validation errors (like blank content)
             logger.warning(f"Post creation failed: {str(e)}")
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class PostDetail(APIView):
-    """
-    API view to retrieve, update, or delete a specific post.
-    Enforces that only the author can update or delete the post.
-    """
-    permission_classes = [IsAuthenticated, IsPostAuthor]
+    # Only authenticated users can access post detail routes
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, pk):
-        logger.info(f"GET /posts/{pk}/ by user={request.user.username}")
+        # Retrieve a single post if user is allowed to view it
+        logger.info(
+            f"GET /posts/{pk}/ by user={request.user.username}, role={getattr(request.user, 'role', None)}"
+        )
         post = get_object_or_404(Post, pk=pk)
-        self.check_object_permissions(request, post)
+
+        if not can_view_post(request.user, post):
+            return Response(
+                {"detail": "You do not have permission to perform this action."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         return Response(PostSerializer(post).data)
 
     def put(self, request, pk):
-        """
-        Update a post if the requesting user is the author.
-        Validates the updated data and logs success or failure.
-        """
-        logger.info(f"PUT /posts/{pk}/ by user={request.user.username}")
+        # Only the author can edit the post
+        logger.info(
+            f"PUT /posts/{pk}/ by user={request.user.username}, role={getattr(request.user, 'role', None)}"
+        )
         post = get_object_or_404(Post, pk=pk)
-        self.check_object_permissions(request, post)
-        serializer = PostSerializer(post, data=request.data)
 
+        if post.author != request.user:
+            return Response(
+                {"detail": "You do not have permission to perform this action."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = PostSerializer(post, data=request.data, partial=True)
         if serializer.is_valid():
             updated_post = serializer.save(author=request.user)
             logger.info(
-                f"Post updated: post_id={updated_post.id}, user={request.user.username}")
+                f"Post updated: post_id={updated_post.id}, user={request.user.username}"
+            )
             return Response(PostSerializer(updated_post).data)
 
         logger.warning(
-            f"Post update failed: post_id={pk}, user={request.user.username}, errors={serializer.errors}")
+            f"Post update failed: post_id={pk}, user={request.user.username}, errors={serializer.errors}"
+        )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
-        """
-        Delete a post if the requesting user is the author.
-        Logs deletion event and returns HTTP 204 on success.
-        """
-        logger.info(f"DELETE /posts/{pk}/ by user={request.user.username}")
-        post = get_object_or_404(Post, pk=pk)
-        self.check_object_permissions(request, post)
-        post.delete()
+        # Only admin can delete any post
         logger.info(
-            f"Post deleted: post_id={pk}, by user={request.user.username}")
-        return Response(status=status.HTTP_204_NO_CONTENT)
+            f"DELETE /posts/{pk}/ by user={request.user.username}, role={getattr(request.user, 'role', None)}"
+        )
+        post = get_object_or_404(Post, pk=pk)
 
-# -------------------- LIKES -------------------- #
+        if is_admin(request.user):
+            post.delete()
+            logger.info(
+                f"Post deleted by admin: post_id={pk}, user={request.user.username}"
+            )
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        return Response(
+            {"detail": "You do not have permission to perform this action."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+
+#  Like views
+
 class PostLike(APIView):
-    """
-    API view to like a post.
-    Prevents duplicate likes by the same user for the same post.
-    """
+    # Only authenticated users can like posts
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
+        # Like a post if user is allowed to interact with it
         post = get_object_or_404(Post, pk=pk)
         logger.info(f"POST /posts/{pk}/like/ by user={request.user.username}")
+
+        if not can_interact_with_post(request.user, post):
+            return Response(
+                {"detail": "You do not have permission to perform this action."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         like, created = Like.objects.get_or_create(
             user=request.user, post=post)
-        
+
         if not created:
             logger.warning(
-                f"Duplicate like blocked: user={request.user.username}, post_id={pk}")
+                f"Duplicate like blocked: user={request.user.username}, post_id={pk}"
+            )
             return Response(
                 {"detail": "You already liked this post."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         return Response(LikeSerializer(like).data, status=status.HTTP_201_CREATED)
 
 
-# -------------------- COMMENTS -------------------- #
+#  Comment views
+
 class PostComment(APIView):
-    """
-    API view to add a comment to a specific post.
-    Validates that the comment text is not empty.
-    """
+    # Only authenticated users can comment
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
+        # Add a comment to a post if user is allowed
         post = get_object_or_404(Post, pk=pk)
         logger.info(
             f"POST /posts/{pk}/comment/ by user={request.user.username}")
+
+        if not can_interact_with_post(request.user, post):
+            return Response(
+                {"detail": "You do not have permission to perform this action."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         text = (request.data.get("text") or "").strip()
         if not text:
             return Response(
                 {"detail": "Comment text is required."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         comment = Comment.objects.create(
             text=text,
             author=request.user,
-            post=post
+            post=post,
         )
 
         logger.info(
-            f"Comment created: comment_id={comment.id}, post_id={pk}, user={request.user.username}")
+            f"Comment created: comment_id={comment.id}, post_id={pk}, user={request.user.username}"
+        )
         return Response(CommentSerializer(comment).data, status=status.HTTP_201_CREATED)
 
 
 class PostComments(APIView):
-    """
-    API view to retrieve all comments for a specific post.
-    Returns comments in descending order of creation.
-    """
+    # Only authenticated users can view comments of an accessible post
     permission_classes = [IsAuthenticated]
 
     def get(self, request, pk):
+        # Return comments for a post if user can view the post
         post = get_object_or_404(Post, pk=pk)
         logger.info(
             f"GET /posts/{pk}/comments/ by user={request.user.username}")
+
+        if not can_view_post(request.user, post):
+            return Response(
+                {"detail": "You do not have permission to perform this action."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         comments = Comment.objects.filter(post=post).order_by("-created_at")
         serializer = CommentSerializer(comments, many=True)
@@ -229,98 +323,167 @@ class PostComments(APIView):
 
 
 class CommentListCreate(APIView):
-    """
-    API view to list all comments or create a new comment globally.
-    Validates that post exists and comment text is not empty.
-    """
+    # Only authenticated users can list or create comments
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        # Admin sees all comments, normal user sees only own comments
         logger.info(f"GET /comments/ by user={request.user.username}")
-        comments = Comment.objects.all().order_by("-created_at")
+
+        if is_admin(request.user):
+            comments = Comment.objects.all().order_by("-created_at")
+        else:
+            comments = Comment.objects.filter(
+                author=request.user).order_by("-created_at")
+
         serializer = CommentSerializer(comments, many=True)
         return Response(serializer.data)
 
     def post(self, request):
+        # Create a comment globally by passing post id
         logger.info(f"POST /comments/ by user={request.user.username}")
 
         post_id = request.data.get("post")
         text = (request.data.get("text") or "").strip()
 
         if not post_id:
-            return Response({"detail": "post is required."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "post is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if not text:
-            return Response({"detail": "text is required."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "text is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         post = get_object_or_404(Post, pk=post_id)
+
+        if not can_interact_with_post(request.user, post):
+            return Response(
+                {"detail": "You do not have permission to perform this action."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         comment = Comment.objects.create(
             text=text,
             author=request.user,
-            post=post
+            post=post,
         )
 
         logger.info(
-            f"Comment created: comment_id={comment.id}, post_id={post.id}, author={request.user.username}")
+            f"Comment created: comment_id={comment.id}, post_id={post.id}, author={request.user.username}"
+        )
         return Response(CommentSerializer(comment).data, status=status.HTTP_201_CREATED)
 
 
 class CommentDetail(APIView):
-    """
-    API view to delete a specific comment.
-    Ensures that only the comment's author can perform deletion.
-    """
-    permission_classes = [IsAuthenticated, IsCommentAuthor]
+    # Only authenticated users can access comment detail routes
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        # Admin or comment owner can view comment detail
+        logger.info(f"GET /comments/{pk}/ by user={request.user.username}")
+        comment = get_object_or_404(Comment, pk=pk)
+
+        if is_admin(request.user) or comment.author == request.user:
+            return Response(CommentSerializer(comment).data)
+
+        return Response(
+            {"detail": "You do not have permission to perform this action."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    def put(self, request, pk):
+        # Only comment owner can edit
+        logger.info(f"PUT /comments/{pk}/ by user={request.user.username}")
+        comment = get_object_or_404(Comment, pk=pk)
+
+        if comment.author != request.user:
+            return Response(
+                {"detail": "You do not have permission to perform this action."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = CommentSerializer(
+            comment, data=request.data, partial=True)
+        if serializer.is_valid():
+            updated_comment = serializer.save(
+                author=request.user, post=comment.post)
+            logger.info(
+                f"Comment updated: comment_id={updated_comment.id}, user={request.user.username}"
+            )
+            return Response(CommentSerializer(updated_comment).data)
+
+        logger.warning(
+            f"Comment update failed: comment_id={pk}, user={request.user.username}, errors={serializer.errors}"
+        )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
+        # Only admin can delete any comment
         logger.info(f"DELETE /comments/{pk}/ by user={request.user.username}")
         comment = get_object_or_404(Comment, pk=pk)
-        self.check_object_permissions(request, comment)
 
-        comment.delete()
-        logger.info(
-            f"Comment deleted: comment_id={pk}, by user={request.user.username}")
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        if is_admin(request.user):
+            comment.delete()
+            logger.info(
+                f"Comment deleted by admin: comment_id={pk}, user={request.user.username}"
+            )
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        return Response(
+            {"detail": "You do not have permission to perform this action."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
 
 
-# -------------------- NEWS FEED -------------------- #
+#  Pagination
+
 class NewsFeedPagination(PageNumberPagination):
-    """
-    Custom pagination class for the news feed.
-    """
-    page_size = 5  # Number of posts per page
-    page_size_query_param = 'page_size'
+    # Custom pagination settings for feed
+    page_size = 5
+    page_size_query_param = "page_size"
     max_page_size = 50
 
+
+# News feed
+
 class NewsFeedView(APIView):
-    """
-    API view for paginated news feed.
-    Supports filtering by posts liked by the requesting user.
-    """
+    # Only authenticated users can access the news feed
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        # Return feed based on role:
+        # - admin sees all posts
+        # - normal user sees public + own posts
         logger.info(f"User {request.user.username} accessing news feed.")
-        
-        # Retrieve posts in descending order
-        posts = Post.objects.all().order_by('-created_at')
 
-        # Filter by liked posts if requested
-        liked_only = request.query_params.get('liked_only')
-        if liked_only == 'true':
+        if is_admin(request.user):
+            posts = Post.objects.all().order_by("-created_at")
+        else:
+            posts = Post.objects.filter(
+                Q(privacy_level=2) | Q(author=request.user)
+            ).order_by("-created_at")
+
+        # Optional filter: only posts liked by the current user
+        liked_only = request.query_params.get("liked_only")
+        if liked_only == "true":
             posts = posts.filter(likes__user=request.user)
-            logger.info(f"Filtering feed for posts liked by {request.user.username}")
+            logger.info(
+                f"Filtering feed for posts liked by {request.user.username}")
 
-        # Apply pagination
         paginator = NewsFeedPagination()
         try:
             paginated_posts = paginator.paginate_queryset(posts, request)
         except Exception:
             return Response(
-                {"error": "Invalid page", "message": "The requested page does not exist."}, 
-                status=status.HTTP_404_NOT_FOUND
+                {
+                    "error": "Invalid page",
+                    "message": "The requested page does not exist.",
+                },
+                status=status.HTTP_404_NOT_FOUND,
             )
 
-        # Serialize and return paginated posts
         serializer = PostSerializer(paginated_posts, many=True)
         return paginator.get_paginated_response(serializer.data)

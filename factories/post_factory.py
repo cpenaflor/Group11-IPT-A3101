@@ -8,7 +8,7 @@ class PostFactory:
 
 
     @staticmethod
-    def create_post(post_type, author, content='', metadata=None):
+    def create_post(post_type, author, privacy_level, content='', metadata=None):
         """
         Create a new Post instance with validation.
 
@@ -32,8 +32,15 @@ class PostFactory:
         # Ensure the post type is valid
         if post_type not in dict(Post.POST_TYPES):
             raise ValueError("Invalid post type")
+        
+        # Ensure privacy level is valid
+        if privacy_level not in [1, 2]:
+            raise ValueError("Invalid privacy level. Must be 1 (Private) or 2 (Public).")
 
         # Validate metadata based on post type requirements
+        if metadata is None:
+            metadata = {}
+
         if post_type == 'image' and 'file_size' not in metadata:
             raise ValueError("Image posts require 'file_size' in metadata")
         if post_type == 'video' and 'duration' not in metadata:
@@ -44,6 +51,7 @@ class PostFactory:
             content=content,
             post_type=post_type,
             metadata=metadata,
-            author=author
+            author=author,
+            privacy_level=privacy_level 
         )
 

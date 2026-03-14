@@ -20,6 +20,12 @@ class Post(models.Model):
         ('video', 'Video'),
     )
 
+    # Integer-based privacy choices
+    class PrivacyLevel(models.IntegerChoices):
+        PRIVATE = 1, "Private"
+        PUBLIC = 2, "Public"
+
+
     # Main content of the post; can be empty for non-text posts
     content = models.TextField(blank=True)
     
@@ -28,6 +34,13 @@ class Post(models.Model):
     
     # Optional JSON metadata for storing additional information
     metadata = models.JSONField(null=True, blank=True)
+
+    # New field: Privacy Level for the post, using IntegerChoices for better 
+    # readability and maintainability
+    privacy_level = models.PositiveSmallIntegerField( 
+        choices=PrivacyLevel.choices,
+        help_text="1=Private, 2=Public"
+    )
 
     # Reference to the user who created the post
     author = models.ForeignKey(
