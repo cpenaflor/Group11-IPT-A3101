@@ -6,6 +6,8 @@
 
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
+from django.utils.decorators import method_decorator 
+from django.views.decorators.cache import cache_page 
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -299,6 +301,7 @@ class NewsFeedView(APIView):
     """
     permission_classes = [IsAuthenticated]
 
+    @method_decorator(cache_page(60 * 1))  # Caches for 1 minute
     def get(self, request):
         logger.info(f"User {request.user.username} accessing news feed.")
         
@@ -316,6 +319,7 @@ class NewsFeedView(APIView):
         try:
             paginated_posts = paginator.paginate_queryset(posts, request)
         except Exception:
+            # This handles the "Invalid parameters gracefully" requirement
             return Response(
                 {"error": "Invalid page", "message": "The requested page does not exist."}, 
                 status=status.HTTP_404_NOT_FOUND
