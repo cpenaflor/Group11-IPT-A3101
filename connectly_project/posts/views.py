@@ -1,6 +1,6 @@
 # This file contains all API views for users, posts, comments, likes, and news feed.
 # It also implements role-based access control and privacy-level rules.
-
+from .pagination import NewsFeedPagination
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from django.shortcuts import get_object_or_404
@@ -438,15 +438,6 @@ class CommentDetail(APIView):
             {"detail": "You do not have permission to perform this action."},
             status=status.HTTP_403_FORBIDDEN,
         )
-
-
-#  Pagination
-
-class NewsFeedPagination(PageNumberPagination):
-    # Custom pagination settings for feed
-    page_size = 5
-    page_size_query_param = "page_size"
-    max_page_size = 50
 
 
 # News feed
