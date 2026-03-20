@@ -30,8 +30,8 @@ User = get_user_model()
 # Shared logger instance
 logger = LoggerSingleton().get_logger()
 
-
 #  Helper functions
+
 
 def is_admin(user):
     # Returns True if the authenticated user has admin role
@@ -44,18 +44,32 @@ def is_public(post):
 
 
 def can_view_post(user, post):
-    # Access rules for viewing a post:
-    # - admin can view any post
-    # - owner can view own post
-    # - anyone authenticated can view public post
-    if not user.is_authenticated:
-        return False
-    if is_admin(user):
-        return True
-    if post.author == user:
-        return True
+    """
+    Determines whether a user can view a given post.
+
+    Rules:
+    - Anyone can view a public post
+    - Unauthenticated users cannot view non-public posts
+    - Admins can view any post
+    - Authors can view their own posts
+    - All other access is denied
+    """
+    # Public posts are visible to everyone, including guests
     if is_public(post):
         return True
+    # Guests cannot view private posts
+    if not user.is_authenticated:
+        return False
+
+    # Admin can view any post
+    if is_admin(user):
+        return True
+
+    # Owner can view their own post
+    if post.author == user:
+        return True
+
+    # Otherwise, access is denied
     return False
 
 
@@ -452,31 +466,55 @@ class NewsFeedPagination(PageNumberPagination):
 # News feed
 
 class NewsFeedView(APIView):
-    # Only authenticated users can access the news feed
-    permission_classes = [IsAuthenticated]
-    @method_decorator(cache_page(60)) 
+    """
+    Returns the news feed.
+
+    Access rules:
+    - Guests can view only public posts
+    - Authenticated users can view public posts and their own posts
+    - Admins can view all posts
+
+    Supports:
+    - pagination
+    - filtering liked posts for authenticated users
+    """
+    # Allow both guests and logged-in users to access the feed endpoint
+    permission_classes = [AllowAny]
+
+    @method_decorator(cache_page(60))
     def get(self, request):
-        # Return feed based on role:
-        # - admin sees all posts
-        # - normal user sees public + own posts
-        logger.info(f"User {request.user.username} accessing news feed.")
+        # Check whether the requester is logged in
+        if request.user.is_authenticated:
+            logger.info(f"User {request.user.username} accessing news feed.")
 
-        if is_admin(request.user):
-            # Optimized with select_related for admins
-            posts = Post.objects.all().select_related('author').order_by("-created_at")
+            # Admin can view all posts
+            if is_admin(request.user):
+                posts = Post.objects.all().select_related("author").order_by("-created_at")
+
+            # Regular authenticated users can view:
+            # - public posts
+            # - their own posts
+            else:
+                posts = Post.objects.filter(
+                    Q(privacy_level=2) | Q(author=request.user)
+                ).select_related("author").order_by("-created_at")
+
+            # Optional filter: show only posts liked by the current user
+            liked_only = request.query_params.get("liked_only")
+            if liked_only == "true":
+                posts = posts.filter(likes__user=request.user)
+                logger.info(
+                    f"Filtering feed for posts liked by {request.user.username}"
+                )
+
+        # Guest users can only view public posts
         else:
-            # Optimized with select_related for normal users
+            logger.info("Guest accessing public news feed.")
             posts = Post.objects.filter(
-                Q(privacy_level=2) | Q(author=request.user)
-            ).select_related('author').order_by("-created_at")
+                privacy_level=2
+            ).select_related("author").order_by("-created_at")
 
-        # Optional filter: only posts liked by the current user
-        liked_only = request.query_params.get("liked_only")
-        if liked_only == "true":
-            posts = posts.filter(likes__user=request.user)
-            logger.info(
-                f"Filtering feed for posts liked by {request.user.username}")
-
+        # Apply pagination to improve performance and response size
         paginator = NewsFeedPagination()
         try:
             paginated_posts = paginator.paginate_queryset(posts, request)
@@ -489,5 +527,6 @@ class NewsFeedView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+        # Serialize paginated results and return paginated response
         serializer = PostSerializer(paginated_posts, many=True)
         return paginator.get_paginated_response(serializer.data)
