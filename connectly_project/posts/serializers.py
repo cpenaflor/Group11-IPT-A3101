@@ -12,6 +12,8 @@ User = get_user_model()
 class UserSerializer(serializers.ModelSerializer):
     # Password is write-only so it will not be exposed in responses
     password = serializers.CharField(write_only=True, required=True)
+    # Make role required
+    role = serializers.IntegerField(required=True)
 
     class Meta:
         # Serializer for the custom user model
@@ -32,7 +34,7 @@ class UserSerializer(serializers.ModelSerializer):
             username=validated_data["username"],
             email=validated_data.get("email", ""),
             password=validated_data["password"],
-            role=validated_data.get("role", User.Roles.USER),
+            role=validated_data["role"],
         )
 
 
