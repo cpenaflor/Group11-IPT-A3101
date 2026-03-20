@@ -1,6 +1,8 @@
 # This file contains all API views for users, posts, comments, likes, and news feed.
 # It also implements role-based access control and privacy-level rules.
 
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
 from django.db.models import Q
@@ -452,7 +454,7 @@ class NewsFeedPagination(PageNumberPagination):
 class NewsFeedView(APIView):
     # Only authenticated users can access the news feed
     permission_classes = [IsAuthenticated]
-
+    @method_decorator(cache_page(60)) 
     def get(self, request):
         # Return feed based on role:
         # - admin sees all posts
@@ -460,11 +462,13 @@ class NewsFeedView(APIView):
         logger.info(f"User {request.user.username} accessing news feed.")
 
         if is_admin(request.user):
-            posts = Post.objects.all().order_by("-created_at")
+            # Optimized with select_related for admins
+            posts = Post.objects.all().select_related('author').order_by("-created_at")
         else:
+            # Optimized with select_related for normal users
             posts = Post.objects.filter(
                 Q(privacy_level=2) | Q(author=request.user)
-            ).order_by("-created_at")
+            ).select_related('author').order_by("-created_at")
 
         # Optional filter: only posts liked by the current user
         liked_only = request.query_params.get("liked_only")
