@@ -1,6 +1,6 @@
 **MO-IT152 - Integrative Programming and Technologies (A3101)**
 
-**Group 11 - Connectly API (+ Likes/Comments + Newsfeed + Google Oauth Login)**
+**Group 11 - Connectly API (features: Likes/Comments, Google OAuth Login, RBAC, Privacy, Optimized Newsfeed & Caching)**
 
 **Members:**
 - Charmaine Nabor
@@ -10,17 +10,19 @@
 
 **Project Overview**
 
-Connectly is a Django REST Framework (DRF) API designed to provide a secure and extensible backend for social interaction applications. It integrates advanced security measures, ownership-based access control, social login, and modern design patterns to maintain code quality and reusability.
+Connectly is a Django REST Framework (DRF) API designed to provide a secure and extensible backend for social interaction applications. It integrates advanced security measures, ownership-based and role-based access control, social login, privacy settings, and modern design patterns to maintain code quality and reusability.
 
 The API supports:
 1. User registration and management
    - Users register with unique email addresses
    - Passwords are securely hashed using Argon2 / PBKDF2 / BCrypt
    - Users can log in via token authentication (DRF token & JWT) or Google OAuth2
+   - Users are assigned roles (admin, user) to restrict access via RBAC
 2. Posts CRUD (Create, Read, Update, Delete)
    - Authenticated users can create, edit, and delete posts
    - Post types include text, image, and video
    - Image posts require metadata file_size; video posts require duration
+   - Posts include a privacy field: public or private
    - Posts are created via a Factory Pattern to centralize validation and future extensibility
 3. Likes on posts
    - Authenticated users can like posts
@@ -29,13 +31,15 @@ The API supports:
    - Users can comment on posts
    - Only the comment author can delete their comment
    - Comments are linked to both the user and the post
-5. Newsfeed with pagination and filtering
+5. Newsfeed with pagination, filtering, and caching
    - Posts are returned sorted by newest first
    - Pagination is applied (default page size: 5)
    - Optional filtering: display only posts liked by the logged-in user
+   - Frequently accessed endpoints are cached to improve performance
 6. Ownership-based permissions
    - Only post authors can update/delete their posts
    - Only comment authors can delete their comments
+   - Access to certain endpoints is restricted based on user roles
 7. Login via Google OAuth2
    - Users can authenticate with Google
    - New users are automatically created if not existing
@@ -105,7 +109,7 @@ connectly_project/
 3. Singleton Config Manager (optional): Centralized app-wide settings.
 4. Ownership Permissions: Prevents unauthorized modifications.
 5. Token & Social Authentication: Secures API access.
-6. Pagination & Filtering: Improves scalability and user experience.
+6. Pagination, Caching & Filtering: Improves scalability and user experience.
 
 **Google OAuth2 Setup Guide:** https://docs.google.com/document/d/1GGz73yMD7y4MrriUWU8q6obsma4GwURb3wOGIB7zZ_8/edit?usp=sharing
 
