@@ -193,6 +193,7 @@ LOGIN_REDIRECT_URL = '/api/feed/'
 LOGOUT_REDIRECT_URL = '/'
 
 # -------------------- CACHING -------------------- #
+# Configure in-memory caching for development
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",

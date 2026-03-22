@@ -472,6 +472,8 @@ class NewsFeedView(APIView):
     # Allow both guests and logged-in users to access the feed endpoint
     permission_classes = [AllowAny]
 
+    # Cache the news feed for 60 seconds to improve performance under high load, 
+    # especially for guest users who see only public posts.
     @method_decorator(cache_page(60))
     def get(self, request):
         # Check whether the requester is logged in
