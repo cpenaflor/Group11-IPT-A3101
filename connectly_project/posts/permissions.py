@@ -7,23 +7,25 @@ from rest_framework.permissions import BasePermission
 
 class IsPostAuthor(BasePermission):
     """
-    Custom permission that allows only the author of a post to perform
-    actions that require object-level permissions (e.g., update or delete).
+    Custom permission for post objects.
+
+    Allows access if:
+    - the requesting user is the author of the post, or
+    - the requesting user is an admin (role == 1)
     """
+
     def has_object_permission(self, request, view, obj):
-        """
-        Return True if the requesting user is the author of the post.
-        """
-        return obj.author == request.user
+        return obj.author == request.user or getattr(request.user, "role", None) == 1
 
 
 class IsCommentAuthor(BasePermission):
     """
-    Custom permission that allows only the author of a comment to perform
-    actions that require object-level permissions (e.g., delete).
+    Custom permission for comment objects.
+
+    Allows access if:
+    - the requesting user is the author of the comment, or
+    - the requesting user is an admin (role == 1)
     """
+
     def has_object_permission(self, request, view, obj):
-        """
-        Return True if the requesting user is the author of the comment.
-        """
-        return obj.author == request.user
+        return obj.author == request.user or getattr(request.user, "role", None) == 1

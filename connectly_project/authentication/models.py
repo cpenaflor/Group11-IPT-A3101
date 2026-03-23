@@ -21,8 +21,20 @@ class CustomUser(AbstractUser):
     # Specify required fields for creating superusers
     REQUIRED_FIELDS = ["username"]
     
-    # Placeholder for future fields that may extend the user model
-    # For example: bio, profile_picture, date_of_birth, etc.
+     # Integer-based roles
+    class Roles(models.IntegerChoices):
+        ADMIN = 1, "Admin"
+        USER = 2, "User"
+
+    # Role field stored as integer
+    role = models.PositiveSmallIntegerField(
+        choices=Roles.choices,
+        default=Roles.USER,
+        help_text="1=Admin, 2=User"
+    )
+
+    def __str__(self):
+        return f"{self.username} ({self.get_role_display()})"
 
 
     

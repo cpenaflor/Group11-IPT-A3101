@@ -4,7 +4,8 @@
 # All models use Django's ORM to interact with the database.
 
 from django.db import models
-from django.conf import settings # Import settings to reference AUTH_USER_MODEL dynamically
+# Import settings to reference AUTH_USER_MODEL dynamically
+from django.conf import settings
 
 
 class Post(models.Model):
@@ -20,14 +21,27 @@ class Post(models.Model):
         ('video', 'Video'),
     )
 
+    # Integer-based privacy choices
+    class PrivacyLevel(models.IntegerChoices):
+        PRIVATE = 1, "Private"
+        PUBLIC = 2, "Public"
+
     # Main content of the post; can be empty for non-text posts
     content = models.TextField(blank=True)
-    
+
     # Type of the post: text, image, or video
-    post_type = models.CharField(max_length=10, choices=POST_TYPES, default='text')
-    
+    post_type = models.CharField(
+        max_length=10, choices=POST_TYPES, default='text')
+
     # Optional JSON metadata for storing additional information
     metadata = models.JSONField(null=True, blank=True)
+
+    # New field: Privacy Level for the post, using IntegerChoices for better
+    # readability and maintainability
+    privacy_level = models.PositiveSmallIntegerField(
+        choices=PrivacyLevel.choices,
+        help_text="1=Private, 2=Public"
+    )
 
     # Reference to the user who created the post
     author = models.ForeignKey(
@@ -51,18 +65,17 @@ class Comment(models.Model):
     # User who wrote the comment
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL, related_name="comments", on_delete=models.CASCADE)
-    
+
     # Post that the comment belongs to
     post = models.ForeignKey(
         Post, related_name="comments", on_delete=models.CASCADE)
-    
+
     # Timestamp automatically set when the comment is created
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         """Return a readable string representation of the comment."""
         return f"Comment by {self.author.username} on Post {self.post.id}"
-
 
 
 class Like(models.Model):
@@ -73,11 +86,11 @@ class Like(models.Model):
     # User who liked the post
     user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name="likes",
                              on_delete=models.CASCADE)
-    
+
     # Post that was liked
     post = models.ForeignKey(Post, related_name="likes",
                              on_delete=models.CASCADE)
-    
+
     # Timestamp automatically set when the like is created
     created_at = models.DateTimeField(auto_now_add=True)
 

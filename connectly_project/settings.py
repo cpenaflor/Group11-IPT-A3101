@@ -148,6 +148,8 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 5,
 }
 
 # -------------------- TEMPLATES -------------------- #
@@ -189,3 +191,12 @@ SOCIALACCOUNT_PROVIDERS = {
 # Redirect URLs after login/logout
 LOGIN_REDIRECT_URL = '/api/feed/'
 LOGOUT_REDIRECT_URL = '/'
+
+# -------------------- CACHING -------------------- #
+# Configure in-memory caching for development
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "unique-snowflake",
+    }
+}
